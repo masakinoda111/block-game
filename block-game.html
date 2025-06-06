@@ -40,6 +40,30 @@
             color: #ccc;
             margin-top: 10px;
         }
+
+        .game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+        }
+
+        .game-over button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -49,12 +73,20 @@
         <div class="instructions">
             Use A/D to move, S to drop, W to rotate
         </div>
+        <div id="gameOver" class="game-over hidden">
+            <div class="over-text">Game Over!</div>
+            <div class="final-score">Score: <span id="finalScore">0</span></div>
+            <button id="restartBtn">Restart</button>
+        </div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
 
         const BOARD_WIDTH = 10;
         const BOARD_HEIGHT = 20;
@@ -64,6 +96,22 @@
         let score = 0;
         let currentPiece = null;
         let gameRunning = true;
+
+        function showGameOver() {
+            finalScoreElement.textContent = score;
+            gameOverElement.classList.remove('hidden');
+        }
+
+        function restartGame() {
+            board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+            score = 0;
+            scoreElement.textContent = score;
+            currentPiece = null;
+            gameRunning = true;
+            gameOverElement.classList.add('hidden');
+        }
+
+        restartBtn.addEventListener('click', restartGame);
 
         const pieces = [
             [[1,1,1,1]], // I
@@ -153,6 +201,7 @@
                         if (this.shape[y][x]) {
                             if (this.y + y < 0) {
                                 gameRunning = false;
+                                showGameOver();
                                 return;
                             }
                             board[this.y + y][this.x + x] = this.color;
@@ -194,9 +243,7 @@
 
         function gameLoop() {
             if (!gameRunning) {
-                ctx.fillStyle = '#fff';
-                ctx.font = '24px Arial';
-                ctx.fillText('Game Over!', 80, 300);
+                showGameOver();
                 return;
             }
 
