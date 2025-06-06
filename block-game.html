@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Block Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        
+        .game-container {
+            text-align: center;
+        }
+        
+        canvas {
+            border: 2px solid #fff;
+            background-color: #000;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            color: #fff;
+        }
+        
+        .score {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .instructions {
+            color: #ccc;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score">Score: <span id="score">0</span></div>
+        <canvas id="gameCanvas" width="300" height="600"></canvas>
+        <div class="instructions">
+            Use A/D to move, S to drop, W to rotate
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = 20;
+        const BLOCK_SIZE = 30;
+
+        let board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+        let score = 0;
+        let currentPiece = null;
+        let gameRunning = true;
+
+        const pieces = [
+            [[1,1,1,1]], // I
+            [[1,1],[1,1]], // O
+            [[0,1,0],[1,1,1]], // T
+            [[0,1,1],[1,1,0]], // S
+            [[1,1,0],[0,1,1]], // Z
+            [[1,0,0],[1,1,1]], // J
+            [[0,0,1],[1,1,1]]  // L
+        ];
+
+        const colors = ['#00ffff', '#ffff00', '#800080', '#00ff00', '#ff0000', '#0000ff', '#ff8000'];
+
+        class Piece {
+            constructor() {
+                this.shape = pieces[Math.floor(Math.random() * pieces.length)];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.x = Math.floor(BOARD_WIDTH / 2) - Math.floor(this.shape[0].length / 2);
+                this.y = 0;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                for (let y = 0; y < this.shape.length; y++) {
+                    for (let x = 0; x < this.shape[y].length; x++) {
+                        if (this.shape[y][x]) {
+                            ctx.fillRect(
+                                (this.x + x) * BLOCK_SIZE,
+                                (this.y + y) * BLOCK_SIZE,
+                                BLOCK_SIZE,
+                                BLOCK_SIZE
+                            );
+                            ctx.strokeStyle = '#333';
+                            ctx.strokeRect(
+                                (this.x + x) * BLOCK_SIZE,
+                                (this.y + y) * BLOCK_SIZE,
+                                BLOCK_SIZE,
+                                BLOCK_SIZE
+                            );
+                        }
+                    }
+                }
+            }
+
+            canMove(dx, dy, newShape = this.shape) {
+                for (let y = 0; y < newShape.length; y++) {
+                    for (let x = 0; x < newShape[y].length; x++) {
+                        if (newShape[y][x]) {
+                            const newX = this.x + x + dx;
+                            const newY = this.y + y + dy;
+                            
+                            if (newX < 0 || newX >= BOARD_WIDTH || newY >= BOARD_HEIGHT) {
+                                return false;
+                            }
+                            
+                            if (newY >= 0 && board[newY][newX]) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+
+            move(dx, dy) {
+                if (this.canMove(dx, dy)) {
+                    this.x += dx;
+                    this.y += dy;
+                    return true;
+                }
+                return false;
+            }
+
+            rotate() {
+                const rotated = this.shape[0].map((_, i) => 
+                    this.shape.map(row => row[i]).reverse()
+                );
+                
+                if (this.canMove(0, 0, rotated)) {
+                    this.shape = rotated;
+                }
+            }
+
+            place() {
+                for (let y = 0; y < this.shape.length; y++) {
+                    for (let x = 0; x < this.shape[y].length; x++) {
+                        if (this.shape[y][x]) {
+                            if (this.y + y < 0) {
+                                gameRunning = false;
+                                return;
+                            }
+                            board[this.y + y][this.x + x] = this.color;
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    board.splice(y, 1);
+                    board.unshift(Array(BOARD_WIDTH).fill(0));
+                    linesCleared++;
+                    y++;
+                }
+            }
+            score += linesCleared * 100;
+            scoreElement.textContent = score;
+        }
+
+        function drawBoard() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let y = 0; y < BOARD_HEIGHT; y++) {
+                for (let x = 0; x < BOARD_WIDTH; x++) {
+                    if (board[y][x]) {
+                        ctx.fillStyle = board[y][x];
+                        ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                        ctx.strokeStyle = '#333';
+                        ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+                    }
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) {
+                ctx.fillStyle = '#fff';
+                ctx.font = '24px Arial';
+                ctx.fillText('Game Over!', 80, 300);
+                return;
+            }
+
+            if (!currentPiece) {
+                currentPiece = new Piece();
+            }
+
+            if (!currentPiece.move(0, 1)) {
+                currentPiece.place();
+                clearLines();
+                currentPiece = null;
+            }
+
+            drawBoard();
+            if (currentPiece) {
+                currentPiece.draw();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!currentPiece || !gameRunning) return;
+            
+            switch(e.key.toLowerCase()) {
+                case 'a':
+                    currentPiece.move(-1, 0);
+                    break;
+                case 'd':
+                    currentPiece.move(1, 0);
+                    break;
+                case 's':
+                    currentPiece.move(0, 1);
+                    break;
+                case 'w':
+                    currentPiece.rotate();
+                    break;
+            }
+        });
+
+        setInterval(gameLoop, 500);
+    </script>
+</body>
+</html>
