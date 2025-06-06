@@ -249,6 +249,15 @@
 
             if (!currentPiece) {
                 currentPiece = new Piece();
+                // Game over is triggered here if the new piece cannot be placed
+                // at its spawn position. canMove(0, 0) checks for collisions with
+                // existing blocks. If spawning overlaps, we stop the loop and
+                // reveal the game over screen.
+                if (!currentPiece.canMove(0, 0)) {
+                    gameRunning = false;
+                    showGameOver();
+                    return;
+                }
             }
 
             if (!currentPiece.move(0, 1)) {
